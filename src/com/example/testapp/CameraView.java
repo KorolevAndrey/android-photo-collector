@@ -30,6 +30,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,
     private SurfaceView surfaceView;
     private AudioManager audio;
     private int current;
+    private boolean surfaceCreatedSuccessful = false;
 
     public CameraView(Context context) {
         super(context);
@@ -47,7 +48,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,
 
             @Override
             public void run() {
-                if (camera == null) {
+                if (camera == null || !surfaceCreatedSuccessful) {
                     handler.postDelayed(this, 1 * 1000);// 由于启动camera需要时间，在此让其等两秒再进行聚焦知道camera不为空
                 } else {
                     camera.autoFocus(new AutoFocusCallback() {
@@ -78,6 +79,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,
         // TODO Auto-generated method stub
 
         camera = Camera.open();// 摄像头的初始化
+        surfaceCreatedSuccessful = true;
         handler.postDelayed(new Runnable() {
 
             @Override
@@ -109,7 +111,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         // TODO Auto-generated method stub
-
+        surfaceCreatedSuccessful = false;
     }
 
     @Override
