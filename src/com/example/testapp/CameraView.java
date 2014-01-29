@@ -79,14 +79,13 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,
         // TODO Auto-generated method stub
 
         camera = Camera.open();// 摄像头的初始化
-        surfaceCreatedSuccessful = true;
         handler.postDelayed(new Runnable() {
-
             @Override
             public void run() {
                 if (holder != null) {
                     try {
                         camera.setPreviewDisplay(holder);
+
                     } catch (IOException e) {
                         // TODO Auto-generated catch block
                         e.printStackTrace();
@@ -96,6 +95,7 @@ public class CameraView extends SurfaceView implements SurfaceHolder.Callback,
                 }
             }
         }, 2 * 1000);
+        surfaceCreatedSuccessful = true;
     }
 
     @Override
