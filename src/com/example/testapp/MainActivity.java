@@ -21,17 +21,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class MainActivity extends Activity {
 
     final static String DEBUG_TAG = "Main";
-
-    private SurfaceHolderCB surfaceHolderCB = new SurfaceHolderCB();
 
     private Camera camera;
     private SensorManager mSensorManager;
@@ -39,8 +34,10 @@ public class MainActivity extends Activity {
     private Handler mHandler = new Handler();
     private SurfaceView mSurfaceView01;
     private SurfaceHolder mSurfaceHolder01;
+    private SurfaceHolderCB surfaceHolderCB = new SurfaceHolderCB();
+    private boolean started = false;
     private boolean isCameraReady = false;
-    private Button takePicButton;
+    private File dataDir = getDir();
     private Runnable timerTask = new Runnable() {
         @Override
         public void run() {
@@ -64,7 +61,6 @@ public class MainActivity extends Activity {
                 initCamera();
             }
 
-
             if (started) {
                 takePicture();
                 //new TakePictureTask();
@@ -72,8 +68,6 @@ public class MainActivity extends Activity {
             mHandler.postDelayed(cameraTask, 500);
         }
     };
-
-    private boolean started = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -83,9 +77,8 @@ public class MainActivity extends Activity {
         mSurfaceHolder01 = mSurfaceView01.getHolder();
         mSurfaceHolder01.addCallback(surfaceHolderCB);
         mSurfaceHolder01.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
-        takePicButton = (Button) findViewById(R.id.digPhotoButton);
-
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+
         final Button startBtn = (Button)findViewById(R.id.button1);
         startBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -101,19 +94,26 @@ public class MainActivity extends Activity {
             }
         });
 
+        final Button takePicButton = (Button) findViewById(R.id.digPhotoButton);
         takePicButton.setOnClickListener(new Button.OnClickListener() {
             public void onClick(View arg0) {
-                    takePicture();
-                }
+                takePicture();
+            }
         });
 
         final Button saveBtn = (Button)findViewById(R.id.button2);
         saveBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                outputSensorData();
+                //outputSensorData();
             }
         });
+
+        // Clear old data
+        if (dataDir.exists()) {
+            dataDir.delete();
+        }
+        dataDir.mkdirs();
     }
 
     private void start() {
@@ -124,6 +124,7 @@ public class MainActivity extends Activity {
         mHandler.post(timerTask);
         mHandler.post(cameraTask);
     }
+
     private void stop() {
         mSensorManager.unregisterListener(mSensorListener);
         mHandler.removeCallbacks(timerTask);
@@ -131,16 +132,15 @@ public class MainActivity extends Activity {
         stopService(new Intent(this, SensorDataCollectorService.class));
     }
 
-
     @Override
     protected void onResume() {
         super.onResume();
-        start();
+        //start();
     }
 
     @Override
     protected void onPause() {
-        stop();
+        //stop();
         super.onPause();
     }
 
@@ -222,42 +222,6 @@ public class MainActivity extends Activity {
         return cameraId;
     }
 
-    private void outputSensorData() {
-        File sdCard = Environment.getExternalStorageDirectory();
-        File dir = new File (sdCard.getAbsolutePath() + "/trackingData");
-        dir.mkdirs();
-        File file1 = new File(dir, "acceReadings.txt");
-        File file2 = new File(dir, "gyroReadings.txt");
-
-        try {
-            FileOutputStream f = new FileOutputStream(file1);
-            List<Reading> readings = new ArrayList<Reading>(mSensorListener.acceReadings);
-            readings = readings.subList(10, readings.size() - 10);
-            for (Reading r : readings) {
-                f.write((r.toString() + '\n').getBytes());
-            }
-            f.close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        try {
-            FileOutputStream f = new FileOutputStream(file2);
-            List<Reading> readings = new ArrayList<Reading>(mSensorListener.gyroReadings);
-            readings = readings.subList(10, readings.size() - 10);
-            for (Reading r : readings) {
-                f.write((r.toString() + '\n').getBytes());
-            }
-            f.close();
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
     //Here is the example for dummy surface view.
 
     public void takePictureNoPreview(Context context){
@@ -303,11 +267,10 @@ public class MainActivity extends Activity {
 
     }
 
-
     class SavePhotoTask extends AsyncTask<byte[], String, String> {
         @Override
         protected String doInBackground(byte[]... data) {
-            File pictureFileDir = getDir();
+            File pictureFileDir = dataDir;
 
             if (!pictureFileDir.exists() && !pictureFileDir.mkdirs()) {
 

@@ -30,12 +30,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+                android:enabled="true"
+                android:name=".SensorDataCollectorService"
+                android:process=":sensor_data_collector"
+                android:label="Sensor data collector"
+                >
+        </service>
     </application>
-    <service
-            android:name="SensorDataCollectorService"
-            android:process=":sensor_data_collector"
-            android:icon="@drawable/ic_launcher"
-            android:label="@string/app_name"
-            >
-    </service>
 </manifest>

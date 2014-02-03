@@ -56,7 +56,6 @@ public class SensorDataCollectorService extends Service {
     private void outputSensorData() {
         File sdCard = Environment.getExternalStorageDirectory();
         File dir = new File (sdCard.getAbsolutePath() + "/trackingData");
-        dir.mkdirs();
         File file1 = new File(dir, "acceReadings.txt");
         File file2 = new File(dir, "gyroReadings.txt");
 
