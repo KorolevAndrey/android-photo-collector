@@ -2,10 +2,12 @@ package com.example.testapp;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -25,9 +27,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends Activity implements SurfaceHolder.Callback {
+public class MainActivity extends Activity {
 
     final static String DEBUG_TAG = "Main";
+
+    private SurfaceHolderCB surfaceHolderCB = new SurfaceHolderCB();
+
     private Camera camera;
     private SensorManager mSensorManager;
     private XSensorEventListener mSensorListener;
@@ -48,9 +53,23 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
                     TextView textView = (TextView)findViewById(R.id.tv2);
                     textView.setText(("Gyro: " + mSensorListener.gyroReadings.get(mSensorListener.gyroReadings.size() - 1)));
                 }
-                takePicture();
             }
             mHandler.postDelayed(timerTask, 300);
+        }
+    };
+    private Runnable cameraTask = new Runnable() {
+        @Override
+        public void run() {
+            if (surfaceHolderCB.created) {
+                initCamera();
+            }
+
+
+            if (started) {
+                takePicture();
+                //new TakePictureTask();
+            }
+            mHandler.postDelayed(cameraTask, 500);
         }
     };
 
@@ -62,7 +81,7 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 		setContentView(R.layout.activity_main);
         mSurfaceView01 = (SurfaceView) findViewById(R.id.mSurfaceView1);
         mSurfaceHolder01 = mSurfaceView01.getHolder();
-        mSurfaceHolder01.addCallback(MainActivity.this);
+        mSurfaceHolder01.addCallback(surfaceHolderCB);
         mSurfaceHolder01.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
         takePicButton = (Button) findViewById(R.id.digPhotoButton);
 
@@ -101,11 +120,15 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
         mSensorListener = new XSensorEventListener();
         mSensorManager.registerListener(mSensorListener, mSensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION), SensorManager.SENSOR_DELAY_FASTEST);
         mSensorManager.registerListener(mSensorListener, mSensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE), SensorManager.SENSOR_DELAY_FASTEST);
+        startService(new Intent(this, SensorDataCollectorService.class));
         mHandler.post(timerTask);
+        mHandler.post(cameraTask);
     }
     private void stop() {
         mSensorManager.unregisterListener(mSensorListener);
         mHandler.removeCallbacks(timerTask);
+        mHandler.removeCallbacks(cameraTask);
+        stopService(new Intent(this, SensorDataCollectorService.class));
     }
 
 
@@ -131,6 +154,16 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
     private void takePicture() {
         if (camera != null && isCameraReady) {
+            //camera.autoFocus(new Camera.AutoFocusCallback() {
+            //    @Override
+            //    public void onAutoFocus(boolean success, Camera camera) {
+            //        if (success) {
+            //            camera.takePicture(null, null, jpegCallback);
+            //        } else {
+            //            Log.d(DEBUG_TAG, "Autofocus failed");
+            //        }
+            //    }
+            //});
             camera.takePicture(null, null, jpegCallback);
             isCameraReady = false;
         }
@@ -142,25 +175,27 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
             Toast.makeText(this, "No camera on this device", Toast.LENGTH_LONG)
                     .show();
         } else {
-            int cameraId = findFrontFacingCamera();
-            if (cameraId < 0) {
-                Toast.makeText(this, "No back facing camera found.",
-                        Toast.LENGTH_LONG).show();
-            } else {
-                camera = Camera.open(cameraId);
-                Camera.Parameters params = camera.getParameters();
-                params.setPictureSize(640, 480);
-                camera.setParameters(params);
-                try {
-                    camera.setPreviewDisplay(mSurfaceHolder01);
-                    camera.setDisplayOrientation(90);
-                } catch (IOException e) {
-                    e.printStackTrace();
+            if (camera == null) {
+                int cameraId = findFrontFacingCamera();
+                if (cameraId < 0) {
+                    Toast.makeText(this, "No back facing camera found.",
+                            Toast.LENGTH_LONG).show();
+                } else {
+                    camera = Camera.open(cameraId);
+                    Camera.Parameters params = camera.getParameters();
+                    params.setPictureSize(640, 480);
+                    params.setPreviewSize(640, 480);
+                    camera.setParameters(params);
+                    try {
+                        camera.setPreviewDisplay(mSurfaceHolder01);
+                        camera.setDisplayOrientation(90);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    camera.startPreview();
+                    isCameraReady = true;
                 }
-                camera.startPreview();
-                isCameraReady = true;
-            }
-        }
+        }   }
     }
 
     private void resetCamera() {
@@ -252,35 +287,34 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
     }
 
 
-    @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int width,
-                               int height) {
-        // TODO Auto-generated method stub
+    private class TakePictureTask extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected void onPostExecute(Void result) {
+            // This returns the preview back to the live camera feed
+            //camera.startPreview();
+        }
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            camera.takePicture(null, null, jpegCallback);
+            return null;
+        }
 
     }
 
-    @Override
-    public void surfaceCreated(SurfaceHolder holder) {
-        // TODO Auto-generated method stub
-        initCamera();
-    }
 
-    @Override
-    public void surfaceDestroyed(SurfaceHolder holder) {
-        // TODO Auto-generated method stub
-        resetCamera();
-    }
-
-    private Camera.PictureCallback jpegCallback = new Camera.PictureCallback() {
-        public void onPictureTaken(byte[] data, Camera _camera) {
+    class SavePhotoTask extends AsyncTask<byte[], String, String> {
+        @Override
+        protected String doInBackground(byte[]... data) {
             File pictureFileDir = getDir();
 
             if (!pictureFileDir.exists() && !pictureFileDir.mkdirs()) {
 
                 Log.d(MainActivity.DEBUG_TAG, "Can't create directory to save image.");
-                Toast.makeText(getApplicationContext(), "Can't create directory to save image.",
-                        Toast.LENGTH_LONG).show();
-                return;
+                //Toast.makeText(getApplicationContext(), "Can't create directory to save image.",
+                //        Toast.LENGTH_LONG).show();
+                return null;
 
             }
 
@@ -294,20 +328,27 @@ public class MainActivity extends Activity implements SurfaceHolder.Callback {
 
             try {
                 FileOutputStream fos = new FileOutputStream(pictureFile);
-                fos.write(data);
+                fos.write(data[0]);
                 fos.close();
-                Toast.makeText(getApplicationContext(), "New Image saved:" + photoFile,
-                        Toast.LENGTH_LONG).show();
+                //Toast.makeText(getApplicationContext(), "New Image saved:" + photoFile,
+                //        Toast.LENGTH_LONG).show();
                 Log.d(MainActivity.DEBUG_TAG, "Picture saved!");
             } catch (Exception error) {
                 Log.d(MainActivity.DEBUG_TAG, "File" + filename + "not saved: "
                         + error.getMessage());
-                Toast.makeText(getApplicationContext(), "Image could not be saved.",
-                        Toast.LENGTH_LONG).show();
+                //Toast.makeText(getApplicationContext(), "Image could not be saved.",
+                //        Toast.LENGTH_LONG).show();
             }
+
+            return(null);
+        }
+    }
+
+    private Camera.PictureCallback jpegCallback = new Camera.PictureCallback() {
+        public void onPictureTaken(byte[] data, Camera _camera) {
+            new SavePhotoTask().execute(data);
             resetCamera();
             initCamera();
-
         }
     };
     private File getDir() {
