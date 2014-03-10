@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
                 takePicture();
                 //new TakePictureTask();
             }
-            mHandler.postDelayed(cameraTask, 500);
+            mHandler.postDelayed(cameraTask, 200);
         }
     };
 
