@@ -7,10 +7,7 @@ import android.content.pm.PackageManager;
 import android.hardware.Camera;
 import android.hardware.Sensor;
 import android.hardware.SensorManager;
-import android.os.AsyncTask;
-import android.os.Bundle;
-import android.os.Environment;
-import android.os.Handler;
+import android.os.*;
 import android.util.Log;
 import android.view.Menu;
 import android.view.SurfaceHolder;
@@ -19,6 +16,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
+import org.apache.commons.io.FileUtils;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -111,7 +109,11 @@ public class MainActivity extends Activity {
 
         // Clear old data
         if (dataDir.exists()) {
-            dataDir.delete();
+            try {
+                FileUtils.deleteDirectory(dataDir);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
         dataDir.mkdirs();
     }
@@ -283,7 +285,8 @@ public class MainActivity extends Activity {
 
             //SimpleDateFormat dateFormat = new SimpleDateFormat("yyyymmddhhmmss");
             //String date = dateFormat.format(new Date());
-            String photoFile = System.nanoTime() + ".jpg";
+            Log.d(DEBUG_TAG, String.valueOf(System.nanoTime()));
+            String photoFile = String.valueOf(System.nanoTime()) + ".jpg";
 
             String filename = pictureFileDir.getPath() + File.separator + photoFile;
 
